@@ -10,7 +10,7 @@ Our implementation generates Voronoi Diagrams for a given set of sites with para
 This is currently only the 2D version of the algorithm, the 3D code will follow after some more refactoring.
 
 ## Dependencies
-Most used libraries are already included in the Python Standard Library (developed and tested with Python 3.8.0).
+Most used libraries are already included in the Python Standard Library (developed and tested with Python 3.8.10).
 
 The only **actually required** library is [NumPy](https://github.com/numpy/numpy).
 
@@ -19,19 +19,20 @@ The only **actually required** library is [NumPy](https://github.com/numpy/numpy
 ## Run Examples
 In the main directory, just run `python runExamples2D.py`.
 This file contains examples for two L∞ Voronoi Diagrams and a Lloyd relaxation with different orientation and anisotropy fields each.
-Results are stored as `.obj` files, plots as any format supported by the matplotlib.
+Results are stored as `.obj` files, plots in any format supported by the matplotlib.
 
 ## Citation
 You can cite the paper with:
 ```
-@article{bukenberger2022constructing,
-    title = {{Constructing $L_\infty$ Voronoi Diagrams in 2D and 3D}},
-    author={Bukenberger, Dennis R and Buchin, Kevin and Botsch, Mario},
-    booktitle={Computer Graphics Forum},
-    volume={41},
-    number={5},
-    pages={135--147},
-    year={2022},
-    organization={Wiley Online Library}
+@Article{bukenberger2022constructing,
+	author    = {Bukenberger, Dennis R. and Buchin, Kevin and Botsch, Mario},
+	journal   = {Computer Graphics Forum},
+	title     = {{Constructing $L_\infty$ Voronoi Diagrams in 2D and 3D}},
+	year      = {2022},
+	issn      = {1467-8659},
+	pages     = {135--147},
+	volume    = {41.5},
+	doi       = {10.1111/cgf.14609},
+	publisher = {The Eurographics Association and John Wiley & Sons Ltd.},
 }
 ```

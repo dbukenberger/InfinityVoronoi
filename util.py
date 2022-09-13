@@ -6,6 +6,7 @@ import multiprocessing as mp
 from time import time
 from xml.dom import minidom
 import logging
+import warnings
 import numpy as np
 
 
@@ -66,6 +67,7 @@ for pDir in [logDir, resDir]:
         os.mkdir(pDir)
 
 
+IN_IDLE = "idlelib.run" in sys.modules
 cpuCount = mp.cpu_count()
 np.random.seed(23)
 eps = 0.000001
