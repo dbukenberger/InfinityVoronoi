@@ -7,9 +7,9 @@ from util import *
 #   | /   \ |
 #   1 - s - 4
 
-initQuadVerts = np.float32([[0, 0], [-1, -1], [-1, 1], [1, 1], [1, -1]])
-edgeCenters = np.vstack([np.eye(2), -np.eye(2), initQuadVerts[1:] * 0.5])
-edgeNormals = np.vstack([np.eye(2), -np.eye(2), initQuadVerts[1:]])
+initCellVerts = np.vstack([[0, 0], quadVerts])
+edgeCenters = np.vstack([np.eye(2), -np.eye(2), initCellVerts[1:] * 0.5])
+edgeNormals = np.vstack([np.eye(2), -np.eye(2), initCellVerts[1:]])
 
 #           e:   +x    n:   +y    w:   -x    s:   -y
 triIdxs = [[0, 3, 4], [0, 2, 3], [0, 1, 2], [0, 4, 1]]
@@ -18,6 +18,9 @@ enIdxs =  [[5, 0, 4], [4, 1, 7], [7, 2, 6], [6, 3, 5]]
 
 
 class TriCutObject:
+
+    initCellVerts = initCellVerts
+
     def __init__(self, site, di, scale, M):
 
         self.edges = list(map(np.int32, [[0, 1], [1, 2], [2, 0]]))
@@ -28,19 +31,22 @@ class TriCutObject:
         eCenterScales = [[scale[(di + 1) % 4], scale[di]], [1, scale[di]], [scale[(di - 1) % 4], scale[di]]] if di % 2 else [[scale[di], scale[(di + 1) % 4]], [scale[di], 1], [scale[di], scale[(di - 1) % 4]]]
         eNormalScales = [[scale[di], scale[(di + 1) % 4]], [1, 1], [scale[di], scale[(di - 1) % 4]]] if di % 2 else [[scale[(di + 1) % 4], scale[di]], [1, 1], [scale[(di - 1) % 4], scale[di]]]       
 
-        self.vertices = site + np.dot(initQuadVerts[triIdxs[di]] * vertScales, M.T)
+        self.vertices = site + np.dot(self.initCellVerts[triIdxs[di]] * vertScales, M.T)
         eCenters = site + np.dot(edgeCenters[ecIdxs[di]] * eCenterScales, M.T)
         eNormals = normVec(np.dot(edgeNormals[enIdxs[di]] * eNormalScales, M.T))
 
         self.edgesPlanes = {-(i + 4): [eCenters[i], eNormals[i]] for i in range(3)}
         self.edgePlaneKeys = [-4, -5, -6]
 
-    def cutWithLine(self, o, n, cutPlaneKey):
+    def clipWithPlane(self, o, n, cutPlaneKey):
+        # in 2D not so crucial for performance
+        self.cutWithPlane(o, n, cutPlaneKey)
+
+    def cutWithPlane(self, o, n, cutPlaneKey):
         dots = np.dot(self.vertices - o, n)
-        inside = dots <= eps
+        vMasks = simpleSign(dots, eps)
         onLine = np.abs(dots) < eps
 
-        vMasks = simpleSign(dots, eps)
         if np.all(vMasks > 0) or np.all(vMasks < 0):
             return
 
@@ -154,7 +160,7 @@ class TriCutObject:
                     elif np.all(edgeMask >= 0):
                         newPolys[cutPolyKey * 2 + 1].append(eIdx)
 
-            assert len(newEdgeInner) == 2, "oh oh, this should not happen"
+            assert len(newEdgeInner) == 2, 'oh oh, this should not happen'
 
             newPolys[cutPolyKey * 2].append(len(self.edges))
             newPolys[cutPolyKey * 2 + 1].append(len(self.edges))
@@ -176,18 +182,22 @@ class TriCutObject:
         self.polys = newPolys
         self.edgePolyIdxs = newEdgePolyIdxs
 
-    def setPolyIoLabels(self, msk):
-        if not hasattr(self, "polysIoLabels"):
-            self.polysIoLabels = {pk: True for pk in self.polys.keys()}
-            self.edgePolyIdxs = np.int64(self.edgePolyIdxs)
+    def computePolysCentroidsAndWeights(self):
+        self.polysCentroids = np.empty((len(self.polys), 2), np.float32)
+        self.polysAreas = np.empty(len(self.polys), np.float32)
+        for pIdx, pk in enumerate(self.polys.keys()):
+            es = [self.edges[eIdx].tolist() for eIdx in self.polys[pk]]
+            self.polysCentroids[pIdx], self.polysAreas[pIdx] = computePolygonCentroid2D(self.vertices[edgesToPath(es)], True)
 
-        self.cellPolyIdxs = []
-        for pIdx, (pk, io) in enumerate(zip(self.polys.keys(), msk)):
-            self.polysIoLabels[pk] = io
-            if io:
-                self.cellPolyIdxs.append(pIdx)
-            else:
-                self.edgePolyIdxs[self.edgePolyIdxs == pk] *= 0
+    def getPolysCentroids(self, ioClipped=True):
+        if not hasattr(self, 'polysCentroids'):
+            self.computePolysCentroidsAndWeights()
+        return self.polysCentroids[self.cellPolyIdxs] if ioClipped and hasattr(self, 'cellPolyIdxs') else self.polysCentroids
+
+    def getPolysWeights(self, ioClipped=True):
+        if not hasattr(self, 'polysAreas'):
+            self.computePolysCentroidsAndWeights()
+        return self.polysAreas[self.cellPolyIdxs] if ioClipped and hasattr(self, 'cellPolyIdxs') else self.polysAreas
 
     def getHullVerts(self):
         es = {}
@@ -197,6 +207,10 @@ class TriCutObject:
                     es[ePlaneKey].append(e)
                 else:
                     es[ePlaneKey] = [e]
+
+        if not len(es):  # cell in init state
+            self.hullPlaneKeys = [-6]
+            return [self.vertices[self.edges[-1]]]
 
         segs = []
         for epk in es.keys():
@@ -208,20 +222,24 @@ class TriCutObject:
         self.hullPlaneKeys = list(es.keys())
         return [self.vertices[seg] for seg in edgesToPaths(segs)]
 
-    def computeCentroids(self):
-        self.polysCentroids = np.empty((len(self.polys), 2), np.float32)
-        self.polysAreas = np.empty(len(self.polys), np.float32)
-        for pIdx, pk in enumerate(self.polys.keys()):
-            es = [self.edges[eIdx].tolist() for eIdx in self.polys[pk]]
-            self.polysCentroids[pIdx], self.polysAreas[pIdx] = computePolygonCentroid2D(self.vertices[edgesToPath(es)], True)
+    def setPolyIoLabels(self, msk):
+        if not hasattr(self, 'polysIoLabel'):
+            self.polysIoLabel = {pk: True for pk in self.polys.keys()}
+            self.edgePolyIdxs = np.int64(self.edgePolyIdxs)
 
-        return self.polysCentroids
+        self.cellPolyIdxs = []
+        for pIdx, (pk, io) in enumerate(zip(self.polys.keys(), msk)):
+            self.polysIoLabel[pk] = io
+            if io:
+                self.cellPolyIdxs.append(pIdx)
+            else:
+                self.edgePolyIdxs[self.edgePolyIdxs == pk] *= 0
 
     def plot(self):
         if mplMissing:
-            warnings.warn("matplotlib missing.")
+            warnings.warn('matplotlib missing.')
             return
-        
+
         fig = plt.figure()
         ax = fig.add_axes([0, 0, 1, 1])
 
@@ -229,10 +247,10 @@ class TriCutObject:
             face = edgesToPath([self.edges[eIdx].tolist() for eIdx in self.polys[pKey]])
             cVerts = self.vertices[face]
             cVerts = cVerts - (cVerts - cVerts.mean(axis=0)) * 0.05
-            ax.fill(cVerts[:, 0], cVerts[:, 1], fill=self.polysIoLabels[pKey] if hasattr(self, "polysIoLabels") else False)
+            ax.fill(cVerts[:, 0], cVerts[:, 1], fill=self.polysIoLabel[pKey] if hasattr(self, 'polysIoLabel') else False)
 
         for vIdx, vt in enumerate(self.vertices):
             ax.text(vt[0], vt[1], str(vIdx))
 
-        ax.set_aspect("equal", "box")
+        ax.set_aspect('equal', 'box')
         plt.show()
