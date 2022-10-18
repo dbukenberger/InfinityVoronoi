@@ -1,4 +1,4 @@
-<img src='infinityVoronoi.svg' align="right" width="256" height="256">
+<img src='data/infinityVoronoi.svg' align="right" width="220" height="220">
 
 # InfinityVoronoi
 
@@ -10,7 +10,7 @@ Our implementation generates Voronoi Diagrams for given sets of sites with param
 
 ## Dependencies
 
-<img src='infinityVoronoi.png' align="right" width="256" height="256">
+<img src='data/infinityVoronoi.png' align="right" width="256" height="256">
 
 Most libraries are part of the Python Standard Library (tested with 3.8.10).
 
