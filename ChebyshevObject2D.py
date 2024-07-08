@@ -21,7 +21,7 @@ class ChebyshevObject2D(ChebyshevObject):
         self.cellVertexSets, self.cellPlaneKeys = list(zip(*dData))
 
     def plot(self, withSites=True, withCentroids=True, withAdjacency=True, withBBs=True, fileName=''):
-        if mplMissing:
+        if not mplFound:
             warnings.warn('matplotlib missing.')
             return
 

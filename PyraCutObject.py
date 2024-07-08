@@ -293,7 +293,7 @@ class PyraCutObject:
                 cutFacesPlaneKeys.append(fpKey)
 
 
-        cutIdxs = getFaceCutIdxs(cutFacesMasks) if len(cutFacesMasks) else []
+        cutIdxs = computeFaceCutIdxs(cutFacesMasks) if len(cutFacesMasks) else []
         for idxs, cutFaceMask, face, fpi, fpKey in zip(cutIdxs, cutFacesMasks, cutFaces, cutFacePolyIdxs, cutFacesPlaneKeys):
             cutVerts = face[[idxs[0], idxs[0]-1, idxs[1], idxs[1]-1]].reshape(2, 2)
 
@@ -510,7 +510,7 @@ class PyraCutObject:
         faces = reIndexIndices(faces)
 
         if len(fpIds):
-            orders = [getConvexPolygonVertexOrder(verts[face], self.polysCentroids[fpi]) for face, fpi in zip(faces, fpIds)]
+            orders = [computeConvexPolygonVertexOrder(verts[face], self.polysCentroids[fpi]) for face, fpi in zip(faces, fpIds)]
             faces = [face[order] for face, order in zip(faces, orders)]
 
         return (verts, faces, fpKeys) if withPlaneKeys else (verts, faces)
@@ -534,7 +534,7 @@ class PyraCutObject:
                     verts.append(vs)
                     c = self.polysCentroids[pk]
                     for f in polyFaces:
-                        o = getConvexPolygonVertexOrder(vs[f], c)
+                        o = computeConvexPolygonVertexOrder(vs[f], c)
                         faces.append(f[o] + vOffset)
                     vOffset += len(vs)
                 else:

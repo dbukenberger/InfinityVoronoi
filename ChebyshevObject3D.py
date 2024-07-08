@@ -28,7 +28,7 @@ class ChebyshevObject3D(ChebyshevObject):
         self.cellPlaneKeys = [[fpDiKey[1] for fpDiKey in self.cellDiss[sIdx].facesPlaneDiKeyTuples] for sIdx in range(self.numSites)]
 
     def plot(self, sIdxs=[], withSites=True, withCentroids=True, withAdjacency=True, withInitCells=True, withBBs=True, withCells=True):
-        if mlabMissing:
+        if not mlabFound:
             warnings.warn('Mayavi missing.')
             return
 
